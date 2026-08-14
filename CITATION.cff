@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite both the repository and the source paper."
+type: software
+title: "collective-portfolio-lab"
+abstract: "Independent toolkit and CLI for collective household portfolio choice pitfalls described in arXiv:2608.12411v1."
+keywords:
+  - collective model
+  - household portfolio choice
+  - risk aversion
+  - non-monotonicity
+  - replication
+repository-code: "https://github.com/yablokolabs/collective-portfolio-lab"
+license: MIT
+version: "0.1.0"
+authors:
+  - name: "collective-portfolio-lab contributors"
+references:
+  - type: article
+    title: "Theory of Household Portfolio Choice: Pitfalls in Applications of the Collective Model"
+    authors:
+      - family-names: Aliyev
+        given-names: Azar
+    url: "https://arxiv.org/abs/2608.12411v1"
+    year: 2026
+    note: "This software is an independent implementation inspired by/arising from this paper. It does not claim exact bit-for-bit replication and is not official author code."
