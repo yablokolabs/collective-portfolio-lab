@@ -8,13 +8,234 @@ This repository independently implements the binary gamble and continuous-choice
 
 Canonical paper URL: https://arxiv.org/abs/2608.12411v1
 
+## Mathematical formulation
+
+Equation numbers below follow the [paper's setup and results](https://arxiv.org/html/2608.12411v1#S2). The implementation uses the same core objects, with the risky share explicitly constrained to $\alpha\in[0,1]$.
+
+### Portfolio and public-good consumption
+
+The risky asset has normally distributed excess return
+
+$$
+\widetilde{x}\sim\mathcal{N}(\mu,\sigma^2),
+\qquad 0\leq\alpha\leq1.
+$$
+
+If $W$ is initial wealth and $r_f$ is the risk-free return, household consumption is
+
+$$
+\begin{aligned}
+C_h(\alpha,\widetilde{x})
+&=\alpha W(1+r_f+\widetilde{x})+(1-\alpha)W(1+r_f)\\
+&=W\bigl(1+r_f+\alpha\widetilde{x}\bigr).
+\end{aligned}
+\qquad (1)
+$$
+
+Therefore,
+
+$$
+C_h\sim\mathcal{N}\left(
+W(1+r_f+\alpha\mu),
+\alpha^2W^2\sigma^2
+\right).\qquad (2)
+$$
+
+The public-good assumption gives both household members the same realized consumption:
+
+$$
+C_1=C_2=C_h.
+$$
+
+### Individual preferences
+
+For absolute risk aversion $A_i>0$, CARA utility is
+
+$$
+U_i^{\mathrm{CARA}}(C_i)
+=-\frac{\exp(-A_iC_i)}{A_i}.\qquad (3)
+$$
+
+For relative risk aversion $\gamma_i>0$, the implementation uses
+
+$$
+U_i^{\mathrm{CRRA}}(C_i)=
+\begin{cases}
+\dfrac{C_i^{1-\gamma_i}}{1-\gamma_i}, & \gamma_i\neq1,\\
+\log C_i, & \gamma_i=1,
+\end{cases}
+\qquad C_i>0.\qquad (4)
+$$
+
+The $\gamma_i=1$ branch is an explicit implementation convention; it is not presented as a continuous extension of the paper's normalization.
+
+### Collective household objective
+
+Let $\lambda_i$ denote member $i$'s Pareto weight. The implementation permits endpoint weights and enforces
+
+$$
+\lambda_i\geq0,
+\qquad
+\lambda_1+\lambda_2=1.
+$$
+
+The additive collective objective is
+
+$$
+\mathbb{E}[U_h]
+=\sum_{i=1}^{2}\lambda_i\mathbb{E}[U_i(C_h)].\qquad (5)
+$$
+
+Individual counterfactual and household choices are respectively
+
+$$
+\alpha_i^{\star}
+=\underset{0\leq\alpha\leq1}{\mathrm{argmax}}
+\mathbb{E}\left[U_i\left(C_h(\alpha,\widetilde{x})\right)\right].\qquad (7)
+$$
+
+$$
+\alpha_h^{\star}
+=\underset{0\leq\alpha\leq1}{\mathrm{argmax}}
+\sum_{i=1}^{2}\lambda_i
+\mathbb{E}\left[U_i\left(C_h(\alpha,\widetilde{x})\right)\right].\qquad (8)
+$$
+
+Under CARA utility and normal excess returns, the implementation evaluates the expectation analytically:
+
+$$
+\mathbb{E}[U_i^{\mathrm{CARA}}]
+=-\frac{1}{A_i}
+\exp\left[
+-A_iW(1+r_f+\alpha\mu)
++\frac{A_i^2W^2\alpha^2\sigma^2}{2}
+\right].
+$$
+
+The unconstrained analytic CARA solution and the bounded implementation share are
+
+$$
+\widehat{\alpha}_{i,\mathrm{CARA}}
+=\frac{\mu}{A_iW\sigma^2},
+\qquad
+\alpha_{i,\mathrm{CARA}}^{\star}
+=\Pi_{[0,1]}\left(\widehat{\alpha}_{i,\mathrm{CARA}}\right),
+$$
+
+where $\Pi_{[0,1]}$ denotes projection onto the feasible interval. CRRA expectations are evaluated with deterministic common random numbers and then optimized over the same interval.
+
+### Binary risky-safe reversal
+
+For the introductory gamble, the risky alternative $s$ pays $1$ with probability $0.9$ and $60$ with probability $0.1$, while the safe alternative $f$ pays $5$. Thus,
+
+$$
+\mathbb{E}[U_i(s)]
+=0.9U_i(1)+0.1U_i(60),
+\qquad
+U_i(f)=U_i(5).
+$$
+
+The household utility difference is
+
+$$
+\Delta_h^s
+=\sum_{i=1}^{2}\lambda_i
+\left(
+\mathbb{E}[U_i(s)]-U_i(f)
+\right),
+\qquad
+s\succ f\iff\Delta_h^s>0.
+\qquad (10)
+$$
+
+With $\gamma_1=0.08$ and equal weights, the implemented three-point example gives
+
+$$
+\gamma_2=0.08\quad\Longrightarrow\quad0.8\quad\Longrightarrow\quad8.0,
+\qquad
+\mathrm{choice}=\mathrm{risky}\quad\Longrightarrow\quad\mathrm{safe}
+\quad\Longrightarrow\quad\mathrm{risky}.
+$$
+
+—the risky $\rightarrow$ safe $\rightarrow$ risky reversal.
+
+### Expected-product CARA benchmark
+
+For comparison, the real-valued CARA formulation corresponding to the paper's expected-product objective is
+
+$$
+\alpha_{\mathrm{EP,CARA}}^{\star}
+=\underset{\alpha\in\mathbb{R}}{\mathrm{argmin}}
+\mathbb{E}\left[
+\prod_{i=1}^{2}
+\left(-U_i^{\mathrm{CARA}}(C_h)\right)^{\lambda_i}
+\right].\qquad (12)
+$$
+
+Here each sign-adjusted utility is positive, so fractional Pareto weights remain real-valued. This repository does **not** numerically implement equation (12); it exposes only its closed-form unconstrained solution as a comparison benchmark.
+
+That analytic risky share is
+
+$$
+\alpha_{\mathrm{EP,CARA}}^{\star}
+=\frac{\mu}
+{W\sigma^2\displaystyle\sum_{i=1}^{2}\lambda_iA_i}.
+\qquad (13)
+$$
+
+For $\mu\neq0$, this is equivalently the Pareto-weighted harmonic mean of the unconstrained individual risky shares:
+
+$$
+\frac{1}{\alpha_{\mathrm{EP,CARA}}^{\star}}
+=\sum_{i=1}^{2}
+\frac{\lambda_i}{\widehat{\alpha}_{i,\mathrm{CARA}}}.
+$$
+
+The library exposes equation (13) as an **unconstrained analytic benchmark**; it does not silently project that benchmark onto $[0,1]$. If a bounded counterpart is required, it is
+
+$$
+\alpha_{\mathrm{EP,CARA},[0,1]}^{\star}
+=\Pi_{[0,1]}\left(\alpha_{\mathrm{EP,CARA}}^{\star}\right).
+$$
+
+### Numerical non-monotonicity criterion
+
+Let $\rho_2$ denote the second member's risk-aversion parameter: $A_2$ for CARA or $\gamma_2$ for CRRA. The detector reports a reversal when, for tolerance $\varepsilon=10^{-4}$,
+
+$$
+\exists j\lt k\lt m:
+\qquad
+\alpha_h^{\star}(\rho_{2,j})
+\gt\alpha_h^{\star}(\rho_{2,k})+\varepsilon,
+\qquad
+\alpha_h^{\star}(\rho_{2,m})
+\gt\alpha_h^{\star}(\rho_{2,k})+\varepsilon.
+$$
+
+The default Figure-1-style calibration is
+
+$$
+(\mu,\sigma,r_f,W,\lambda_1,\lambda_2)
+=(0.1,0.2,0,2,0.5,0.5),
+$$
+
+with $A_1=2$ for CARA or $\gamma_1=4$ for CRRA. The repository uses $20{,}000$ seeded draws for its deterministic CRRA curves.
+
+| Mathematical object | Implementation |
+| --- | --- |
+| $C_h(\alpha,\widetilde{x})$ | `_alpha_to_consumption` / vectorized simulation |
+| $U_i^{\mathrm{CARA}}\quad U_i^{\mathrm{CRRA}}$ | `cara_utility`, `crra_utility` |
+| $\alpha_h^{\star}$ under equation (8) | `optimize_household_additive` |
+| CARA/CRRA parameter sweeps | `sweep_continuous` |
+| $\alpha_{\mathrm{EP,CARA}}^{\star}$ in equation (13) | `cara_expected_product_benchmark` |
+
 ## What this is (independent-implementation disclaimer)
 
-- **Continuous model:** Normal-excess-return simulation (`x ~ N(mu, sigma^2)`), bounded risky share `alpha` in `[0, 1]`, deterministic common random numbers (`seed=42`, `n_sims=20000` by default).
+- **Continuous model:** Normal-excess-return simulation $\widetilde{x}\sim\mathcal{N}(\mu,\sigma^2)$, bounded risky share $\alpha\in[0,1]$, deterministic common random numbers (`seed=42`, `n_sims=20000` by default).
 - **Positivity handling:** CRRA simulation validates strictly positive consumption; if any draw yields non-positive consumption, the objective returns a very negative value (`-1e12`) rather than silently evaluating at invalid inputs.
-- **Aggregation:** Additive household aggregation (`lambda1 * E[U1] + lambda2 * E[U2]`) is one alternative; the analytic CARA expected-product benchmark (`alpha* = mu / (sum lambda_i A_i W sigma^2)`) is provided for comparison. The benchmark is reported as the raw analytic value; clipping is documented explicitly and never applied silently.
+- **Aggregation:** Additive household aggregation $\sum_i\lambda_i\mathbb{E}[U_i]$ is one alternative; the analytic CARA expected-product benchmark $\alpha^{\star}=\mu/(W\sigma^2\sum_i\lambda_iA_i)$ is provided for comparison. The benchmark is reported as the raw analytic value; clipping is documented explicitly and never applied silently.
 - **Non-monotonicity:** Tolerance-based detector (`tolerance=1e-4`) requiring at least one meaningful decrease followed later by a meaningful increase; it does not require adjacent sign flips and rejects flat numerical noise.
-- **Gamma=1 convention:** For CRRA utility, `gamma=1` is handled as an explicit `log(C)` convention. It is not claimed continuous with `C^(1-gamma)/(1-gamma)` at `gamma=1`; the singular value is documented as a convention for the paper's utility normalization.
+- **Gamma=1 convention:** For CRRA utility, $\gamma=1$ is handled as an explicit $\log C$ convention. It is not claimed continuous with $C^{1-\gamma}/(1-\gamma)$ at $\gamma=1$; the singular value is documented as a convention for the paper's utility normalization.
 - **Financial advice:** This toolkit demonstrates the model for education and replication; it does **not** provide financial advice.
 
 ## Installation
@@ -166,7 +387,7 @@ Actual output excerpt:
 ]
 ```
 
-Note that `individual_2_share` at `risk_aversion_2=0.5` is clipped to `1.0` because the raw analytic value (`2.5`) exceeds the bounded interval `[0, 1]`. The clipping is explicit and documented; the equation itself (`alpha* = mu / (A*W*sigma^2)`) is unchanged.
+Note that `individual_2_share` at `risk_aversion_2=0.5` is clipped to `1.0` because the raw analytic value (`2.5`) exceeds the bounded interval $[0,1]$. The clipping is explicit and documented; the equation itself, $\alpha^{\star}=\mu/(AW\sigma^2)$, is unchanged.
 
 ## Normal Python API quick-start
 
@@ -188,8 +409,8 @@ sweep_continuous(
 
 ## Assumptions and limitations
 
-- Normal-return assumption (`x ~ N(mu, sigma^2)`).
-- Additive household aggregation (`sum lambda_i E[U_i]`) is one alternative; the expected-product benchmark (`alpha* = mu / (sum lambda_i A_i W sigma^2)`) is provided for comparison.
+- Normal-return assumption $\widetilde{x}\sim\mathcal{N}(\mu,\sigma^2)$.
+- Additive household aggregation $\sum_i\lambda_i\mathbb{E}[U_i]$ is one alternative; the expected-product benchmark $\alpha^{\star}=\mu/(W\sigma^2\sum_i\lambda_iA_i)$ is provided for comparison.
 - CRRA simulation uses common random numbers with an explicit fixed seed (`seed=42`) and documented simulation count (`n_sims=20000` by default). It validates positive consumption explicitly; if non-positive consumption occurs, the objective returns `-1e12` rather than evaluating at invalid inputs.
 - Non-monotonicity detection uses a numerical tolerance (`1e-4`) rather than exact floating-point equality; it requires a meaningful decrease followed later by a meaningful increase.
 - This toolkit demonstrates the model for education and replication; it does **not** provide financial advice.
